@@ -23,64 +23,82 @@ To Implement ELLIPTIC CURVE CRYPTOGRAPHY(ECC)
 5. Security: ECC’s security relies on the Elliptic Curve Discrete Logarithm Problem (ECDLP), making it highly secure with shorter key lengths compared to traditional methods like RSA.
 
 ## Program:
-~~~
+```
 #include <stdio.h>
-
-typedef struct { long long x, y; } Point;
-
-long long modInv(long long a, long long m) {
-  long long m0 = m, x0 = 0, x1 = 1, q, t;
-  while (a > 1) {
-    q = a / m; t = m; m = a % m; a = t;
-    t = x0; x0 = x1 - q * x0; x1 = t;
-  }
-  return x1 < 0 ? x1 + m0 : x1;
+typedef struct {
+    long long int x, y;
+} Point;
+long long int modInverse(long long int a, long long int m) {
+    long long int m0 = m, t, q;
+    long long int x0 = 0, x1 = 1;
+    if (m == 1) return 0;
+    while (a > 1) {
+        q = a / m;
+        t = m;
+        m = a % m, a = t;
+        t = x0;
+        x0 = x1 - q * x0;
+        x1 = t;
+    }
+    if (x1 < 0) x1 += m0;
+    return x1;
 }
-
-Point add(Point P, Point Q, long long a, long long p) {
-  Point R; long long λ;
-  if (P.x == Q.x && P.y == Q.y)
-    λ = (3 * P.x * P.x + a) * modInv(2 * P.y, p) % p;
-  else
-    λ = (Q.y - P.y) * modInv(Q.x - P.x, p) % p;
-  R.x = (λ * λ - P.x - Q.x + p) % p;
-  R.y = (λ * (P.x - R.x) - P.y + p) % p;
-  return R;
+Point pointAddition(Point P, Point Q, long long int a, long long int p) {
+    Point R;
+    long long int lambda;
+    if (P.x == Q.x && P.y == Q.y) {
+        lambda = (3 * P.x * P.x + a) * modInverse(2 * P.y, p) % p;
+    } else { 
+        lambda = (Q.y - P.y) * modInverse(Q.x - P.x, p) % p;
+    }
+    R.x = (lambda * lambda - P.x - Q.x) % p;
+    R.y = (lambda * (P.x - R.x) - P.y) % p;
+    R.x = (R.x + p) % p;
+    R.y = (R.y + p) % p;
+    return R;
 }
-
-Point mul(Point P, long long k, long long a, long long p) {
-  Point R = P; k--;
-  while (k--) R = add(R, P, a, p);
-  return R;
+Point scalarMultiplication(Point P, long long int k, long long int a, long long int p) {
+    Point result = P;
+    k--; // Subtract 1 because we start with the base point
+    while (k > 0) {
+        result = pointAddition(result, P, a, p); // Add the point to itself (k times)
+        k--;
+    }
+    return result;
 }
 
 int main() {
-  long long p, a, b, privA, privB;
-  Point G, pubA, pubB, sharedA, sharedB;
-
-  printf("Enter prime p, curve params a b, base point G (x y), keys a b:\n");
-  scanf("%lld %lld %lld %lld %lld %lld %lld", &p, &a, &b, &G.x, &G.y, &privA, &privB);
-
-  pubA = mul(G, privA, a, p);
-  pubB = mul(G, privB, a, p);
-  sharedA = mul(pubB, privA, a, p);
-  sharedB = mul(pubA, privB, a, p);
-
-  printf("Public A: (%lld, %lld)\n", pubA.x, pubA.y);
-  printf("Public B: (%lld, %lld)\n", pubB.x, pubB.y);
-  printf("Shared A: (%lld, %lld)\n", sharedA.x, sharedA.y);
-  printf("Shared B: (%lld, %lld)\n", sharedB.x, sharedB.y);
-
-  if (sharedA.x == sharedB.x && sharedA.y == sharedB.y)
-    printf("Key exchange successful.\n");
-  else
-    printf("Key exchange failed.\n");
-
-  return 0;
+    long long int p, a, b, privateA, privateB;
+    Point G, publicA, publicB, sharedSecretA, sharedSecretB;
+    printf("Enter the prime number (p): ");
+    scanf("%lld", &p);
+    printf("Enter the curve parameters (a and b) for equation y^2 = x^3 + ax + b: ");
+    scanf("%lld %lld", &a, &b);
+    printf("Enter the base point G (x and y): ");
+    scanf("%lld %lld", &G.x, &G.y);
+    printf("Enter Alice's private key: ");
+    scanf("%lld", &privateA);
+    printf("Enter Bob's private key: ");
+    scanf("%lld", &privateB);
+    publicA = scalarMultiplication(G, privateA, a, p); // Alice's public key
+    publicB = scalarMultiplication(G, privateB, a, p); // Bob's public key
+    printf("Alice's public key: (%lld, %lld)\n", publicA.x, publicA.y);
+    printf("Bob's public key: (%lld, %lld)\n", publicB.x, publicB.y);
+    sharedSecretA = scalarMultiplication(publicB, privateA, a, p); // Alice's shared secret
+    sharedSecretB = scalarMultiplication(publicA, privateB, a, p); // Bob's shared secret
+    printf("Shared secret computed by Alice: (%lld, %lld)\n", sharedSecretA.x, sharedSecretA.y);
+    printf("Shared secret computed by Bob: (%lld, %lld)\n", sharedSecretB.x, sharedSecretB.y);
+    if (sharedSecretA.x == sharedSecretB.x && sharedSecretA.y == sharedSecretB.y) {
+        printf("Key exchange successful. Both shared secrets match!\n");
+    } else {
+        printf("Key exchange failed. Shared secrets do not match.\n");
+    }
+    return 0;
 }
-~~~
+```
+
 ## Output:
-![cry ex 11](https://github.com/user-attachments/assets/d266ccb9-3d22-4ec8-bed8-d834431f6b9f)
+![image](https://github.com/user-attachments/assets/b621ce5b-21cc-42f9-8521-313049e366a3)
 
 ## Result:
 The program is executed successfully
